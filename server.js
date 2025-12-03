@@ -1,6 +1,9 @@
 const express= require("express");
+const morgan = require("morgan")
 const app = express();
 const PORT= 3001
+
+
 
 let phonebook=[
     { 
@@ -25,12 +28,36 @@ let phonebook=[
     }
 ]
 
+const requestLogger = (request,response,next) =>{
+    console.log("Method:", request.method)
+    console.log("Path:", request.path)
+    console.log("Body:", request.body)
+    console.log("---")
+    next()
+}
+// morgan.token("body",(req,res)=>{return `{"name":${req.body.name},"number":${req.body.number}}`})
+
+morgan.token("body",(req,res)=>{return JSON.stringify(req.body)})
+
+
 app.use(express.json());
+// app.use(requestLogger)
+app.use(morgan((tokens,req,res)=>{
+    return [
+        tokens.method(req,res),
+        tokens.url(req,res),
+        tokens.status(req,res),
+        tokens.res(req,res,"content-length"), "-",
+        tokens["response-time"](req,res),"ms",
+        tokens.body(req,res)
+    ].join(" ")
+}))
+
 
 app.get("/api/persons",(request,response)=>{
     response.json(phonebook)   
 })
-
+ 
 // Try to fix the string if time allows
 app.get("/info",(request,response)=>{
 
@@ -80,9 +107,15 @@ app.post("/api/persons/",(request,response)=>{
             "name": request.body.name, 
             "number": request.body.number
         })
-        response.status(202).end()
+        response.status(200).end()
     }
 })
+
+const unknownEndpoint = (request,response)=>{
+    response.status(404).send({error:"unknown endpoint"})
+}
+
+app.use(unknownEndpoint)
 
 app.listen(PORT,(err)=>{
     console.log(`server is running on port ${PORT}`)
